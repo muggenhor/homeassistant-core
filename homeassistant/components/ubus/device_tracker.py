@@ -17,6 +17,7 @@ from homeassistant.const import (
     CONF_PASSWORD,
     CONF_URL,
     CONF_USERNAME,
+    CONF_VERIFY_SSL,
 )
 import homeassistant.helpers.config_validation as cv
 
@@ -60,7 +61,9 @@ class UbusDeviceScanner(DeviceScanner):
         except KeyError:
             self.url = f"http://{config[CONF_HOST]}/ubus"
 
-        self.ubus = Ubus(self.url, self.username, self.password)
+        self.ubus = Ubus(
+            self.url, self.username, self.password, verify=config[CONF_VERIFY_SSL]
+        )
         self.hostapd = []
         self.mac2name = None
         self.success_init = self.ubus.connect() is not None
@@ -191,6 +194,7 @@ PLATFORM_SCHEMA: Final = vol.All(
             vol.Optional(CONF_DHCP_SOFTWARE, default=DEFAULT_DHCP_SOFTWARE): vol.In(
                 DHCP_SOFTWARES.keys()
             ),
+            vol.Optional(CONF_VERIFY_SSL, default=True): cv.boolean,
         }
     ),
 )
