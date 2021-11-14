@@ -12,7 +12,12 @@ from homeassistant.components.device_tracker import (
     PLATFORM_SCHEMA as PARENT_PLATFORM_SCHEMA,
     DeviceScanner,
 )
-from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME
+from homeassistant.const import (
+    CONF_HOST,
+    CONF_PASSWORD,
+    CONF_URL,
+    CONF_USERNAME,
+)
 import homeassistant.helpers.config_validation as cv
 
 _LOGGER = logging.getLogger(__name__)
@@ -46,12 +51,14 @@ class UbusDeviceScanner(DeviceScanner):
 
     def __init__(self, config):
         """Initialize the scanner."""
-        host = config[CONF_HOST]
         self.username = config[CONF_USERNAME]
         self.password = config[CONF_PASSWORD]
 
         self.last_results = []
-        self.url = f"http://{host}/ubus"
+        try:
+            self.url = config[CONF_URL]
+        except KeyError:
+            self.url = f"http://{config[CONF_HOST]}/ubus"
 
         self.ubus = Ubus(self.url, self.username, self.password)
         self.hostapd = []
@@ -164,15 +171,28 @@ DHCP_SOFTWARES: Final[dict[str, type]] = {
     "none": UbusDeviceScanner,
 }
 
-PLATFORM_SCHEMA: Final = PARENT_PLATFORM_SCHEMA.extend(
-    {
-        vol.Required(CONF_HOST): cv.string,
-        vol.Required(CONF_PASSWORD): cv.string,
-        vol.Required(CONF_USERNAME): cv.string,
-        vol.Optional(CONF_DHCP_SOFTWARE, default=DEFAULT_DHCP_SOFTWARE): vol.In(
-            DHCP_SOFTWARES.keys()
-        ),
-    }
+EXCL_CONF_URL_OR_HOST: Final[str] = f"{CONF_URL}_XOR_{CONF_HOST}"
+EXCL_CONF_URL_OR_HOST_MSG: Final[
+    str
+] = f"use either new '{CONF_URL}' or old '{CONF_HOST}', not both"
+
+PLATFORM_SCHEMA: Final = vol.All(
+    cv.has_at_least_one_key(CONF_URL, CONF_HOST),
+    PARENT_PLATFORM_SCHEMA.extend(
+        {
+            vol.Exclusive(
+                CONF_URL, EXCL_CONF_URL_OR_HOST, msg=EXCL_CONF_URL_OR_HOST_MSG
+            ): cv.url,
+            vol.Exclusive(
+                CONF_HOST, EXCL_CONF_URL_OR_HOST, msg=EXCL_CONF_URL_OR_HOST_MSG
+            ): cv.string,
+            vol.Required(CONF_PASSWORD): cv.string,
+            vol.Required(CONF_USERNAME): cv.string,
+            vol.Optional(CONF_DHCP_SOFTWARE, default=DEFAULT_DHCP_SOFTWARE): vol.In(
+                DHCP_SOFTWARES.keys()
+            ),
+        }
+    ),
 )
 
 
