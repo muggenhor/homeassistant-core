@@ -50,8 +50,7 @@ class UbusDeviceScanner(DeviceScanner):
         self.username = config[CONF_USERNAME]
         self.password = config[CONF_PASSWORD]
 
-        self.parse_api_pattern = re.compile(r"(?P<param>\w*) = (?P<value>.*);")
-        self.last_results = {}
+        self.last_results = []
         self.url = f"http://{host}/ubus"
 
         self.ubus = Ubus(self.url, self.username, self.password)
