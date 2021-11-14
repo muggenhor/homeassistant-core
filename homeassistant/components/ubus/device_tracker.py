@@ -2,6 +2,7 @@
 
 import logging
 import re
+from typing import Final
 
 from openwrt.ubus import Ubus
 import voluptuous as vol
@@ -15,34 +16,6 @@ from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME
 import homeassistant.helpers.config_validation as cv
 
 _LOGGER = logging.getLogger(__name__)
-
-CONF_DHCP_SOFTWARE = "dhcp_software"
-DEFAULT_DHCP_SOFTWARE = "dnsmasq"
-DHCP_SOFTWARES = ["dnsmasq", "odhcpd", "none"]
-
-PLATFORM_SCHEMA = PARENT_PLATFORM_SCHEMA.extend(
-    {
-        vol.Required(CONF_HOST): cv.string,
-        vol.Required(CONF_PASSWORD): cv.string,
-        vol.Required(CONF_USERNAME): cv.string,
-        vol.Optional(CONF_DHCP_SOFTWARE, default=DEFAULT_DHCP_SOFTWARE): vol.In(
-            DHCP_SOFTWARES
-        ),
-    }
-)
-
-
-def get_scanner(hass, config):
-    """Validate the configuration and return an ubus scanner."""
-    dhcp_sw = config[DOMAIN][CONF_DHCP_SOFTWARE]
-    if dhcp_sw == "dnsmasq":
-        scanner = DnsmasqUbusDeviceScanner(config[DOMAIN])
-    elif dhcp_sw == "odhcpd":
-        scanner = OdhcpdUbusDeviceScanner(config[DOMAIN])
-    else:
-        scanner = UbusDeviceScanner(config[DOMAIN])
-
-    return scanner if scanner.success_init else None
 
 
 def _refresh_on_access_denied(func):
@@ -182,3 +155,31 @@ class OdhcpdUbusDeviceScanner(UbusDeviceScanner):
         else:
             # Error, handled in the ubus.get_dhcp_method()
             return
+
+
+CONF_DHCP_SOFTWARE: Final = "dhcp_software"
+DEFAULT_DHCP_SOFTWARE: Final = "dnsmasq"
+DHCP_SOFTWARES: Final[dict[str, type]] = {
+    "dnsmasq": DnsmasqUbusDeviceScanner,
+    "odhcpd": OdhcpdUbusDeviceScanner,
+    "none": UbusDeviceScanner,
+}
+
+PLATFORM_SCHEMA: Final = PARENT_PLATFORM_SCHEMA.extend(
+    {
+        vol.Required(CONF_HOST): cv.string,
+        vol.Required(CONF_PASSWORD): cv.string,
+        vol.Required(CONF_USERNAME): cv.string,
+        vol.Optional(CONF_DHCP_SOFTWARE, default=DEFAULT_DHCP_SOFTWARE): vol.In(
+            DHCP_SOFTWARES.keys()
+        ),
+    }
+)
+
+
+def get_scanner(hass, config):
+    """Validate the configuration and return an ubus scanner."""
+    dhcp_sw = config[DOMAIN][CONF_DHCP_SOFTWARE]
+    scanner = DHCP_SOFTWARES[dhcp_sw](config[DOMAIN])
+
+    return scanner if scanner.success_init else None
