@@ -11,7 +11,12 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 import voluptuous as vol
 
 from homeassistant.components.recorder import CONF_DB_URL, DEFAULT_DB_FILE, DEFAULT_URL
-from homeassistant.components.sensor import PLATFORM_SCHEMA, SensorEntity
+from homeassistant.components.sensor import (
+    CONF_STATE_CLASS,
+    PLATFORM_SCHEMA,
+    SensorEntity,
+    STATE_CLASSES_SCHEMA,
+)
 from homeassistant.const import CONF_NAME, CONF_UNIT_OF_MEASUREMENT, CONF_VALUE_TEMPLATE
 from homeassistant.core import HomeAssistant
 import homeassistant.helpers.config_validation as cv
@@ -44,6 +49,7 @@ _QUERY_SCHEME = vol.Schema(
         vol.Required(CONF_COLUMN_NAME): cv.string,
         vol.Required(CONF_NAME): cv.string,
         vol.Required(CONF_QUERY): vol.All(cv.string, validate_sql_select),
+        vol.Optional(CONF_STATE_CLASS): STATE_CLASSES_SCHEMA,
         vol.Optional(CONF_UNIT_OF_MEASUREMENT): cv.string,
         vol.Optional(CONF_VALUE_TEMPLATE): cv.template,
     }
@@ -90,6 +96,7 @@ def setup_platform(
         name = query.get(CONF_NAME)
         query_str = query.get(CONF_QUERY)
         unit = query.get(CONF_UNIT_OF_MEASUREMENT)
+        state_class = query.get(CONF_STATE_CLASS)
         value_template = query.get(CONF_VALUE_TEMPLATE)
         column_name = query.get(CONF_COLUMN_NAME)
 
@@ -105,7 +112,13 @@ def setup_platform(
             )
 
         sensor = SQLSensor(
-            name, sessmaker, query_str, column_name, unit, value_template
+            name,
+            sessmaker,
+            query_str,
+            column_name,
+            unit,
+            value_template,
+            state_class,
         )
         queries.append(sensor)
 
@@ -115,7 +128,9 @@ def setup_platform(
 class SQLSensor(SensorEntity):
     """Representation of an SQL sensor."""
 
-    def __init__(self, name, sessmaker, query, column, unit, value_template):
+    def __init__(
+        self, name, sessmaker, query, column, unit, value_template, state_class
+    ):
         """Initialize the SQL sensor."""
         self._name = name
         self._query = query
@@ -125,6 +140,11 @@ class SQLSensor(SensorEntity):
         self.sessionmaker = sessmaker
         self._state = None
         self._attributes = None
+        self._state_class = state_class
+
+    @property
+    def state_class(self):
+        return self._state_class
 
     @property
     def name(self):
