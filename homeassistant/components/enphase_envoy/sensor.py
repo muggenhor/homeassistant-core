@@ -41,6 +41,7 @@ async def async_setup_entry(
                         config_entry.unique_id,
                         serial_number,
                         coordinator,
+                        config_entry.data["host"],
                     )
                 )
         elif sensor_description.key != "inverters":
@@ -57,6 +58,7 @@ async def async_setup_entry(
                     config_entry.unique_id,
                     None,
                     coordinator,
+                    config_entry.data["host"],
                 )
             )
 
@@ -74,6 +76,7 @@ class Envoy(CoordinatorEntity, SensorEntity):
         device_serial_number,
         serial_number,
         coordinator,
+        host,
     ):
         """Initialize Envoy entity."""
         self.entity_description = description
@@ -81,6 +84,7 @@ class Envoy(CoordinatorEntity, SensorEntity):
         self._serial_number = serial_number
         self._device_name = device_name
         self._device_serial_number = device_serial_number
+        self._host = host
 
         super().__init__(coordinator)
 
@@ -140,6 +144,7 @@ class Envoy(CoordinatorEntity, SensorEntity):
         if not self._device_serial_number:
             return None
         return DeviceInfo(
+            configuration_url=f"http://{self._host}/",
             identifiers={(DOMAIN, str(self._device_serial_number))},
             manufacturer="Enphase",
             model="Envoy",
